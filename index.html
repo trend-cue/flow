@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feed Finder</title>
+<title>Trend Cue</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -137,9 +137,13 @@ body::before {
   box-shadow: 0 0 0 4px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.3);
 }
 
+.search-input-wrap {
+  position: relative;
+}
+
 .search-icon {
   position: absolute;
-  left: 40px;
+  left: 20px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
@@ -596,8 +600,8 @@ body::before {
 <!-- Top Nav -->
 <nav class="topnav">
   <div class="logo" onclick="goHome()">
-    <div class="logo-icon">F</div>
-    Feed Finder
+    <div class="logo-icon">⟁</div>
+    Trend Cue
   </div>
   <div class="nav-links">
     <button class="nav-link active" id="nav-home" onclick="goHome()">Home</button>
@@ -606,8 +610,10 @@ body::before {
 
 <!-- Search -->
 <div class="search-container">
-  <span class="search-icon">&#x1F50D;</span>
-  <input class="search-bar" type="text" placeholder="What's trending? Try a natural language query..." id="searchInput">
+  <div class="search-input-wrap">
+    <span class="search-icon">&#x1F50D;</span>
+    <input class="search-bar" type="text" placeholder="What's trending? Try a natural language query..." id="searchInput">
+  </div>
   <div class="search-hint">
     Try: <span>gym problems 2026</span> <span>AI hiring trends</span> <span>fashion bags</span>
   </div>
