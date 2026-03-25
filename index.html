@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feed Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0A0A0F;
+  --surface: #12121A;
+  --surface-2: #1A1A25;
+  --surface-3: #22222F;
+  --border: #2A2A3A;
+  --text: #E8E8F0;
+  --text-dim: #8888A0;
+  --text-muted: #55556A;
+  --accent: #6C5CE7;
+  --accent-glow: rgba(108, 92, 231, 0.15);
+  --rising: #00D2A0;
+  --peaking: #FFB347;
+  --cooling: #FF6B8A;
+  --rising-bg: rgba(0, 210, 160, 0.08);
+  --peaking-bg: rgba(255, 179, 71, 0.08);
+  --cooling-bg: rgba(255, 107, 138, 0.08);
+  --instagram: #E1306C;
+  --tiktok: #00F2EA;
+  --twitter: #8EAAF0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Top Nav ── */
+.topnav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: 'Newsreader', serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: none;
+}
+
+.nav-link:hover { color: var(--text); background: var(--surface-2); }
+.nav-link.active { color: var(--text); background: var(--surface-2); }
+
+/* ── Search Bar ── */
+.search-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 100px 20px 40px;
+  position: relative;
+}
+
+.search-bar {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 24px 18px 52px;
+  font-size: 16px;
+  font-family: 'Instrument Sans', sans-serif;
+  color: var(--text);
+  outline: none;
+  transition: all 0.3s;
+}
+
+.search-bar::placeholder { color: var(--text-muted); }
+.search-bar:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.search-icon {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: 18px;
+}
+
+.search-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.search-hint span {
+  background: var(--surface-2);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin: 0 4px;
+  border: 1px solid var(--border);
+}
+
+/* ── Views ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── Home Grid ── */
+.home-view { padding: 0 40px 80px; max-width: 1200px; margin: 0 auto; }
+
+.trend-section {
+  margin-bottom: 48px;
+  opacity: 0;
+  transform: translateY(24px);
+  animation: fadeUp 0.5s ease forwards;
+}
+
+.trend-section:nth-child(1) { animation-delay: 0.1s; }
+.trend-section:nth-child(2) { animation-delay: 0.2s; }
+.trend-section:nth-child(3) { animation-delay: 0.3s; }
+.trend-section:nth-child(4) { animation-delay: 0.35s; }
+
+@keyframes fadeUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.heat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.heat-badge.rising { color: var(--rising); background: var(--rising-bg); border: 1px solid rgba(0,210,160,0.2); }
+.heat-badge.peaking { color: var(--peaking); background: var(--peaking-bg); border: 1px solid rgba(255,179,71,0.2); }
+.heat-badge.cooling { color: var(--cooling); background: var(--cooling-bg); border: 1px solid rgba(255,107,138,0.2); }
+
+.see-all {
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-weight: 500;
+}
+.see-all:hover { text-decoration: underline; }
+
+.posts-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ── Post Card ── */
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+}
+
+.post-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px var(--accent);
+}
+
+.post-thumb {
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.post-thumb .gradient-art {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+}
+
+.post-thumb .content-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 32px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+
+.platform-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
+.platform-badge.instagram { background: rgba(225, 48, 108, 0.2); color: var(--instagram); border: 1px solid rgba(225,48,108,0.3); }
+.platform-badge.tiktok { background: rgba(0, 242, 234, 0.1); color: var(--tiktok); border: 1px solid rgba(0,242,234,0.2); }
+.platform-badge.twitter { background: rgba(142, 170, 240, 0.15); color: var(--twitter); border: 1px solid rgba(142,170,240,0.25); }
+
+.post-body {
+  padding: 14px 16px 16px;
+}
+
+.post-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-metrics {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.post-metrics span { display: flex; align-items: center; gap: 4px; }
+
+.post-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.pill:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ── Trend Detail View ── */
+.trend-view { padding: 80px 40px 80px; max-width: 1200px; margin: 0 auto; }
+
+.trend-hero {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 40px 0;
+  opacity: 0;
+  animation: fadeUp 0.4s ease 0.1s forwards;
+}
+
+.trend-hero h1 {
+  font-family: 'Newsreader', serif;
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+
+.trend-meta {
+  color: var(--text-dim);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.related-trends {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.related-pill {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 24px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.related-pill:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.trend-feed {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ── Post Detail View ── */
+.detail-view {
+  padding: 80px 40px 80px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 24px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  transition: color 0.2s;
+}
+.detail-back:hover { color: var(--text); }
+
+.detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp 0.4s ease 0.1s forwards;
+}
+
+.detail-media {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.detail-media .gradient-art {
+  position: absolute;
+  inset: 0;
+  opacity: 0.7;
+}
+
+.detail-media .content-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 56px;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+
+.detail-content {
+  padding: 28px 32px 32px;
+}
+
+.detail-platform-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.detail-content h2 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.detail-desc {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.detail-metrics {
+  display: flex;
+  gap: 28px;
+  font-size: 14px;
+  color: var(--text-dim);
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.detail-metrics .metric { display: flex; flex-direction: column; gap: 2px; }
+.detail-metrics .metric-val { font-size: 20px; font-weight: 600; color: var(--text); }
+.detail-metrics .metric-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.detail-pills-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-pills .pill {
+  font-size: 13px;
+  padding: 6px 16px;
+}
+
+/* ── Search Results ── */
+.search-view { padding: 0 40px 80px; max-width: 1200px; margin: 0 auto; }
+
+.search-results-header {
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.3s ease forwards;
+}
+
+.search-results-header h2 {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.search-results-header h2 span {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.search-results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ── Flow indicator ── */
+.flow-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.flow-step {
+  color: var(--text-muted);
+  transition: color 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flow-step.active { color: var(--accent); }
+.flow-step .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.3s;
+}
+.flow-step.active .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.flow-arrow { color: var(--text-muted); font-size: 12px; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .posts-row, .trend-feed, .search-results-grid { grid-template-columns: 1fr; }
+  .topnav { padding: 0 16px; }
+  .home-view, .trend-view, .detail-view, .search-view { padding-left: 16px; padding-right: 16px; }
+  .search-container { padding: 88px 16px 24px; }
+  .trend-hero h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<nav class="topnav">
+  <div class="logo" onclick="goHome()">
+    <div class="logo-icon">F</div>
+    Feed Finder
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active" id="nav-home" onclick="goHome()">Home</button>
+  </div>
+</nav>
+
+<!-- Search -->
+<div class="search-container">
+  <span class="search-icon">&#x1F50D;</span>
+  <input class="search-bar" type="text" placeholder="What's trending? Try a natural language query..." id="searchInput">
+  <div class="search-hint">
+    Try: <span>gym problems 2026</span> <span>AI hiring trends</span> <span>fashion bags</span>
+  </div>
+</div>
+
+<!-- HOME VIEW -->
+<div class="view active" id="homeView">
+  <div class="home-view" id="homeGrid"></div>
+</div>
+
+<!-- SEARCH VIEW -->
+<div class="view" id="searchView">
+  <div class="search-view">
+    <div class="search-results-header">
+      <h2>Results for "<span id="searchQuery"></span>"</h2>
+    </div>
+    <div class="search-results-grid" id="searchResults"></div>
+  </div>
+</div>
+
+<!-- TREND VIEW -->
+<div class="view" id="trendView">
+  <div class="trend-view">
+    <div class="trend-hero" id="trendHero"></div>
+    <div class="trend-feed" id="trendFeed"></div>
+  </div>
+</div>
+
+<!-- POST DETAIL VIEW -->
+<div class="view" id="detailView">
+  <div class="detail-view" id="detailContent"></div>
+</div>
+
+<!-- Flow Bar -->
+<div class="flow-bar">
+  <div class="flow-step active" id="flow-search"><div class="dot"></div> Search</div>
+  <div class="flow-arrow">&#x2192;</div>
+  <div class="flow-step" id="flow-discover"><div class="dot"></div> Discover</div>
+  <div class="flow-arrow">&#x2192;</div>
+  <div class="flow-step" id="flow-explore"><div class="dot"></div> Explore</div>
+</div>
+
+<script>
+// ── Data ──
+const trends = [
+  { id: 'ai', label: 'Artificial Intelligence', heat: 'rising', posts: 12400, related: ['tech', 'employment', 'automation'] },
+  { id: 'fitness', label: 'Fitness & Gym', heat: 'peaking', posts: 8700, related: ['nutrition', 'wellness', 'running'] },
+  { id: 'finance', label: 'Personal Finance', heat: 'rising', posts: 6300, related: ['investing', 'crypto', 'real-estate'] },
+  { id: 'fashion', label: 'Fashion & Style', heat: 'cooling', posts: 5100, related: ['luxury', 'streetwear', 'beauty'] },
+  { id: 'tech', label: 'Technology', heat: 'rising', posts: 9800, related: ['ai', 'startups', 'dev-tools'] },
+  { id: 'employment', label: 'Employment & Careers', heat: 'peaking', posts: 7200, related: ['ai', 'remote-work', 'freelance'] },
+  { id: 'nutrition', label: 'Nutrition', heat: 'rising', posts: 4500, related: ['fitness', 'wellness', 'cooking'] },
+  { id: 'automation', label: 'Automation', heat: 'rising', posts: 3900, related: ['ai', 'tech', 'employment'] },
+  { id: 'investing', label: 'Investing', heat: 'cooling', posts: 5600, related: ['finance', 'crypto', 'real-estate'] },
+  { id: 'wellness', label: 'Wellness', heat: 'peaking', posts: 4100, related: ['fitness', 'nutrition', 'mental-health'] },
+  { id: 'running', label: 'Running', heat: 'rising', posts: 3200, related: ['fitness', 'wellness', 'gear'] },
+  { id: 'streetwear', label: 'Streetwear', heat: 'cooling', posts: 2800, related: ['fashion', 'luxury', 'sneakers'] },
+  { id: 'crypto', label: 'Crypto', heat: 'cooling', posts: 4700, related: ['finance', 'investing', 'tech'] },
+  { id: 'startups', label: 'Startups', heat: 'rising', posts: 3500, related: ['tech', 'finance', 'employment'] },
+  { id: 'remote-work', label: 'Remote Work', heat: 'peaking', posts: 5900, related: ['employment', 'tech', 'freelance'] },
+];
+
+const gradients = [
+  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+  'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
+  'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+  'linear-gradient(135deg, #f5576c 0%, #ff6f91 100%)',
+  'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
+];
+
+const icons = ['📊', '🎥', '📸', '💬', '📈', '🎬', '🖼️', '📱'];
+const platforms = ['instagram', 'tiktok', 'twitter'];
+
+const postData = [
+  { title: 'How GPT-5 is changing the way we think about creative work', trends: ['ai', 'tech', 'employment'], desc: 'A deep dive into the latest generative AI models and what they mean for creative professionals. The video breaks down real use cases across design, writing, and music production.' },
+  { title: '"I replaced my entire morning routine with AI" and here is what happened', trends: ['ai', 'wellness', 'tech'], desc: 'Creator documents a 30-day experiment using AI to plan meals, workouts, and schedule. Results show a 40% reduction in decision fatigue but raises questions about over-reliance.' },
+  { title: 'The real reason tech companies are doing mass layoffs in 2026', trends: ['employment', 'ai', 'tech'], desc: 'Analysis connecting the latest wave of layoffs to AI automation adoption. Features interviews with laid-off engineers and hiring managers.' },
+  { title: 'This gym hack fixed my shoulder impingement in 2 weeks', trends: ['fitness', 'wellness'], desc: 'Physical therapist shares a simple band exercise protocol that went viral. Over 200k saves and thousands of comments confirming results.' },
+  { title: 'My $300/month budget breakdown living in Tallinn', trends: ['finance', 'employment'], desc: 'Detailed cost-of-living breakdown from a remote worker in Estonia. Covers rent, food, transport, and entertainment with exact numbers.' },
+  { title: 'Why the "quiet luxury" trend is already dying', trends: ['fashion', 'streetwear'], desc: 'Fashion analyst argues that the old money aesthetic peaked in late 2025 and shows data on declining engagement for key brands.' },
+  { title: 'Running form mistakes that are destroying your knees', trends: ['running', 'fitness', 'wellness'], desc: 'Biomechanics expert uses slow-motion footage to show the three most common form errors and simple fixes.' },
+  { title: 'I built a SaaS in 48 hours using only AI tools', trends: ['ai', 'startups', 'tech'], desc: 'Founder livestreamed building a working SaaS product using Cursor, Claude, and Vercel. Post documents the full build with costs and time breakdown.' },
+  { title: 'The protein myth: you are probably eating way more than you need', trends: ['nutrition', 'fitness'], desc: 'Registered dietitian challenges the fitness industry standard of 1g/lb bodyweight. Cites recent meta-analyses suggesting 0.7g/lb is sufficient for most lifters.' },
+  { title: 'Remote work is not dying. Here are the real numbers.', trends: ['remote-work', 'employment', 'tech'], desc: 'Data journalist compiles hiring data from 50+ companies and shows that remote-first postings increased 12% in Q1 2026, despite return-to-office headlines.' },
+  { title: 'How I negotiated a 40% raise by changing one sentence in my pitch', trends: ['employment', 'finance'], desc: 'Career coach breaks down a negotiation framework and the exact script that helped her client move from $85k to $120k.' },
+  { title: 'The best bags under $100 that look like designer pieces', trends: ['fashion', 'finance'], desc: 'Stylist compares affordable dupes side-by-side with luxury originals. Includes links, materials comparison, and durability tests.' },
+  { title: 'Bitcoin just broke $150k. Here is why this time is different.', trends: ['crypto', 'investing', 'finance'], desc: 'Crypto analyst explains the institutional adoption wave and how ETF inflows are structurally different from 2021 retail mania.' },
+  { title: 'This 5-minute morning stretch changed how I feel all day', trends: ['wellness', 'fitness'], desc: 'Yoga instructor shares a short mobility routine that targets hip flexors, thoracic spine, and ankles. 50k+ saves in the first week.' },
+  { title: 'Automating my entire freelance business with Zapier and AI', trends: ['automation', 'ai', 'startups'], desc: 'Freelancer shows the exact automation stack: client intake, invoicing, follow-ups, and content scheduling, all running hands-free.' },
+  { title: 'The sneaker market is crashing. Resellers are losing thousands.', trends: ['streetwear', 'fashion', 'investing'], desc: 'Deep dive into the collapsing resale market for limited sneakers. Data from StockX and GOAT shows average premiums dropped 60% year-over-year.' },
+  { title: 'Why every developer should learn systems design in 2026', trends: ['tech', 'employment', 'startups'], desc: 'Senior engineer argues that systems design is the most undervalued skill in the job market and shares a free 4-week study plan.' },
+  { title: 'Meal prep for muscle gain: 2500 calories for under $8/day', trends: ['nutrition', 'fitness', 'finance'], desc: 'Bodybuilder on a budget shares a full week of meal prep with macros, grocery list, and cooking workflow. Optimized for time and cost.' },
+];
+
+// Generate full posts
+const allPosts = postData.map((p, i) => ({
+  id: i,
+  title: p.title,
+  desc: p.desc,
+  trends: p.trends,
+  platform: platforms[i % 3],
+  views: Math.floor(Math.random() * 900000 + 100000),
+  likes: Math.floor(Math.random() * 80000 + 5000),
+  comments: Math.floor(Math.random() * 8000 + 500),
+  gradient: gradients[i % gradients.length],
+  icon: icons[i % icons.length],
+  date: `Mar ${Math.floor(Math.random() * 20 + 1)}, 2026`,
+}));
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n;
+}
+
+function getTrend(id) { return trends.find(t => t.id === id) || { id, label: id, heat: 'rising', posts: 0, related: [] }; }
+
+function renderPostCard(post) {
+  const pills = post.trends.map(t => {
+    const tr = getTrend(t);
+    return `<span class="pill" onclick="event.stopPropagation(); openTrend('${t}')">${tr.label}</span>`;
+  }).join('');
+
+  return `
+    <div class="post-card" onclick="openPost(${post.id})">
+      <div class="post-thumb">
+        <div class="gradient-art" style="background: ${post.gradient}"></div>
+        <span class="content-icon">${post.icon}</span>
+        <span class="platform-badge ${post.platform}">${post.platform}</span>
+      </div>
+      <div class="post-body">
+        <div class="post-title">${post.title}</div>
+        <div class="post-metrics">
+          <span>&#x1F441; ${fmt(post.views)}</span>
+          <span>&#x2764; ${fmt(post.likes)}</span>
+          <span>&#x1F4AC; ${fmt(post.comments)}</span>
+        </div>
+        <div class="post-pills">${pills}</div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Home ──
+function renderHome() {
+  const homeTopics = ['ai', 'fitness', 'finance', 'fashion'];
+  const grid = document.getElementById('homeGrid');
+  grid.innerHTML = homeTopics.map(tid => {
+    const trend = getTrend(tid);
+    const posts = allPosts.filter(p => p.trends.includes(tid)).slice(0, 3);
+    return `
+      <div class="trend-section">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>${trend.label}</h2>
+            <span class="heat-badge ${trend.heat}">${trend.heat === 'rising' ? '&#x2197; Rising' : trend.heat === 'peaking' ? '&#x1F525; Peaking' : '&#x2198; Cooling'}</span>
+          </div>
+          <button class="see-all" onclick="openTrend('${tid}')">See all &#x2192;</button>
+        </div>
+        <div class="posts-row">${posts.map(renderPostCard).join('')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Trend View ──
+function openTrend(tid) {
+  const trend = getTrend(tid);
+  const posts = allPosts.filter(p => p.trends.includes(tid));
+
+  document.getElementById('trendHero').innerHTML = `
+    <h1>${trend.label}</h1>
+    <div class="trend-meta">
+      <span class="heat-badge ${trend.heat}">${trend.heat === 'rising' ? '&#x2197; Rising' : trend.heat === 'peaking' ? '&#x1F525; Peaking' : '&#x2198; Cooling'}</span>
+      <span>${fmt(trend.posts)} posts this week</span>
+    </div>
+    <div class="related-trends">
+      ${trend.related.map(r => `<span class="related-pill" onclick="openTrend('${r}')">${getTrend(r).label}</span>`).join('')}
+    </div>
+  `;
+
+  document.getElementById('trendFeed').innerHTML = posts.map(renderPostCard).join('');
+  showView('trendView');
+  setFlow('discover');
+  window.scrollTo({ top: 0 });
+}
+
+// ── Post Detail ──
+function openPost(id) {
+  const post = allPosts.find(p => p.id === id);
+  const pills = post.trends.map(t => {
+    const tr = getTrend(t);
+    return `<span class="pill" onclick="openTrend('${t}')">${tr.label}</span>`;
+  }).join('');
+
+  document.getElementById('detailContent').innerHTML = `
+    <button class="detail-back" onclick="history.back()">&#x2190; Back</button>
+    <div class="detail-card">
+      <div class="detail-media">
+        <div class="gradient-art" style="background: ${post.gradient}"></div>
+        <span class="content-icon">${post.icon}</span>
+      </div>
+      <div class="detail-content">
+        <div class="detail-platform-row">
+          <span class="platform-badge ${post.platform}">${post.platform}</span>
+          <span style="font-size:13px;color:var(--text-muted)">${post.date}</span>
+        </div>
+        <h2>${post.title}</h2>
+        <p class="detail-desc">${post.desc}</p>
+        <div class="detail-metrics">
+          <div class="metric"><span class="metric-val">${fmt(post.views)}</span><span class="metric-label">Views</span></div>
+          <div class="metric"><span class="metric-val">${fmt(post.likes)}</span><span class="metric-label">Likes</span></div>
+          <div class="metric"><span class="metric-val">${fmt(post.comments)}</span><span class="metric-label">Comments</span></div>
+        </div>
+        <div class="detail-pills-label">Associated Trends</div>
+        <div class="detail-pills">${pills}</div>
+      </div>
+    </div>
+  `;
+
+  showView('detailView');
+  setFlow('explore');
+  window.scrollTo({ top: 0 });
+}
+
+// ── Search ──
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && searchInput.value.trim()) {
+    doSearch(searchInput.value.trim());
+  }
+});
+
+function doSearch(query) {
+  const q = query.toLowerCase();
+  const results = allPosts.filter(p =>
+    p.title.toLowerCase().includes(q) ||
+    p.desc.toLowerCase().includes(q) ||
+    p.trends.some(t => getTrend(t).label.toLowerCase().includes(q))
+  );
+
+  document.getElementById('searchQuery').textContent = query;
+  document.getElementById('searchResults').innerHTML = (results.length ? results : allPosts.slice(0, 6)).map(renderPostCard).join('');
+
+  showView('searchView');
+  setFlow('discover');
+  window.scrollTo({ top: 0 });
+}
+
+// ── Navigation ──
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  showView('homeView');
+  setFlow('search');
+  searchInput.value = '';
+  window.scrollTo({ top: 0 });
+}
+
+function setFlow(step) {
+  ['search', 'discover', 'explore'].forEach(s => {
+    document.getElementById('flow-' + s).classList.toggle('active', false);
+  });
+  if (step === 'search') {
+    document.getElementById('flow-search').classList.add('active');
+  } else if (step === 'discover') {
+    document.getElementById('flow-search').classList.add('active');
+    document.getElementById('flow-discover').classList.add('active');
+  } else if (step === 'explore') {
+    document.getElementById('flow-search').classList.add('active');
+    document.getElementById('flow-discover').classList.add('active');
+    document.getElementById('flow-explore').classList.add('active');
+  }
+}
+
+// ── Hint click ──
+document.querySelectorAll('.search-hint span').forEach(el => {
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
+    searchInput.value = el.textContent;
+    doSearch(el.textContent);
+  });
+});
+
+// ── Init ──
+renderHome();
+setFlow('search');
+
+// Browser back support
+window.addEventListener('popstate', goHome);
+</script>
+
+</body>
+</html>
